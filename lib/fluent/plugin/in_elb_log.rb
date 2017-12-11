@@ -121,29 +121,31 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
     timestamp = get_timestamp_file()
 
     object_keys = get_object_keys(timestamp)
-    object_keys = sort_object_key(object_keys)
+    if object_keys
+      object_keys = sort_object_key(object_keys)
 
-    log.info "processing #{object_keys.count} object(s)."
+      log.info "processing #{object_keys.count} object(s)."
 
-    object_keys.each do |object_key|
-      record_common = {
-        "account_id" => object_key[:account_id],
-        "region" => object_key[:region],
-        "logfile_date" => object_key[:logfile_date],
-        "logfile_elb_name" => object_key[:logfile_elb_name],
-        "elb_ip_address" => object_key[:elb_ip_address],
-        "logfile_hash" => object_key[:logfile_hash],
-        "elb_timestamp" => object_key[:elb_timestamp],
-        "key" => object_key[:key],
-        "prefix" => object_key[:prefix],
-        "elb_timestamp_unixtime" => object_key[:elb_timestamp_unixtime],
-        "s3_last_modified_unixtime" => object_key[:s3_last_modified_unixtime],
-      }
+      object_keys.each do |object_key|
+        record_common = {
+          "account_id" => object_key[:account_id],
+          "region" => object_key[:region],
+          "logfile_date" => object_key[:logfile_date],
+          "logfile_elb_name" => object_key[:logfile_elb_name],
+          "elb_ip_address" => object_key[:elb_ip_address],
+          "logfile_hash" => object_key[:logfile_hash],
+          "elb_timestamp" => object_key[:elb_timestamp],
+          "key" => object_key[:key],
+          "prefix" => object_key[:prefix],
+          "elb_timestamp_unixtime" => object_key[:elb_timestamp_unixtime],
+          "s3_last_modified_unixtime" => object_key[:s3_last_modified_unixtime],
+        }
 
-      get_file_from_s3(object_key[:key])
-      emit_lines_from_buffer_file(record_common)
+        get_file_from_s3(object_key[:key])
+        emit_lines_from_buffer_file(record_common)
 
-      put_timestamp_file(object_key[:s3_last_modified_unixtime])
+        put_timestamp_file(object_key[:s3_last_modified_unixtime])
+      end
     end
   end
 

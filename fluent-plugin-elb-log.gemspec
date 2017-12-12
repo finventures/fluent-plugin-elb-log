@@ -4,12 +4,12 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "fluent-plugin-elb-log"
-  spec.version       = "0.4.3"
-  spec.authors       = ["shinsaka"]
-  spec.email         = ["shinx1265@gmail.com"]
-  spec.summary       = "Amazon ELB log input plugin"
+  spec.version       = "0.4.4"
+  spec.authors       = ["shinsaka", "ndevvy"]
+  spec.email         = ["shinx1265@gmail.com", "nicole@finxpc.com"]
+  spec.summary       = "Amazon ELB log input plugin - forked by Fin"
   spec.description   = "Amazon ELB log input plugin for fluentd"
-  spec.homepage      = "https://github.com/shinsaka/fluent-plugin-elb-log"
+  spec.homepage      = "https://github.com/finventures/fluent-plugin-elb-log"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0")

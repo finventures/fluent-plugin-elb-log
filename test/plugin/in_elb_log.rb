@@ -14,7 +14,8 @@ class Elb_LogInputTest < Test::Unit::TestCase
     s3_prefix: 'test',
     region: 'ap-northeast-1',
     timestamp_file: 'elb_last_at.dat',
-    refresh_interval: 300
+    refresh_interval: 300,
+    lb_type: 'alb'
   }
 
   def parse_config(conf = {})
@@ -82,6 +83,13 @@ class Elb_LogInputTest < Test::Unit::TestCase
       create_driver(conf)
     }
     assert_equal('timestamp_file is required', exception.message)
+
+    exception = assert_raise(Fluent::ConfigError) {
+      conf = DEFAULT_CONFIG.clone
+      conf.delete(:lb_type)
+      create_driver(conf)
+    }
+    assert_equal("lb_type is required: 'alb' for application load balancer, 'classic_lb' for classic load balancer", exception.message)
   end
 
   def test_configure_in_EC2_with_IAM_role
@@ -171,7 +179,7 @@ class Elb_LogInputTest < Test::Unit::TestCase
   def test_log_classic_lb_parse
     log = '2017-05-05T12:53:50.128456Z elbname 10.11.12.13:37852 192.168.30.186:443 0.00004 0.085372 0.000039 301 301 0 0 "GET https://elbname-123456789.ap-northeast-1.elb.amazonaws.com:443/ HTTP/1.1" "curl/7.51.0" ECDHE-RSA-AES128-GCM-SHA256 TLSv1.2'
 
-    m = Fluent::Plugin::Elb_LogInput::ACCESSLOG_REGEXP.match(log)
+    m = Fluent::Plugin::Elb_LogInput::CLASSIC_LB_ACCESSLOG_REGEXP.match(log)
     assert_equal('2017-05-05T12:53:50.128456Z', m[:time])
     assert_equal('elbname', m[:elb])
     assert_equal('10.11.12.13', m[:client])
@@ -192,15 +200,12 @@ class Elb_LogInputTest < Test::Unit::TestCase
     assert_equal('ECDHE-RSA-AES128-GCM-SHA256', m[:ssl_cipher])
     assert_equal('TLSv1.2', m[:ssl_protocol])
     assert_equal(nil, m[:type])
-    assert_equal(nil, m[:target_group_arn])
-    assert_equal(nil, m[:trace_id])
-    assert_equal(nil, m[:option3])
   end
 
   def test_log_application_lb_parse
-    log = 'https 2017-05-05T13:07:53.468529Z app/elbname/59bfa19e900030c2 10.20.30.40:52730 192.168.30.186:443 0.006 0.000 0.086 301 301 117 507 "GET https://elbname-1121128512.ap-northeast-1.elb.amazonaws.com:443/ HTTP/1.1" "curl/7.51.0" ECDHE-RSA-AES128-GCM-SHA256 TLSv1.2 arn:aws:elasticloadbalancing:ap-northeast-1:123456789012:targetgroup/lbgrp1/605122a4e4ee9f2d "Root=1-590c7929-4eb4cb393d46a01d22db8473"'
+    log = 'https 2017-05-05T13:07:53.468529Z app/elbname/59bfa19e900030c2 10.20.30.40:52730 192.168.30.186:443 0.006 0.000 0.086 301 301 117 507 "GET https://elbname-1121128512.ap-northeast-1.elb.amazonaws.com:443/ HTTP/1.1" "curl/7.51.0" ECDHE-RSA-AES128-GCM-SHA256 TLSv1.2 arn:aws:elasticloadbalancing:ap-northeast-1:123456789012:targetgroup/lbgrp1/605122a4e4ee9f2d "Root=1-590c7929-4eb4cb393d46a01d22db8473" "www.foo.com" "session-renegotiated-or-reused"'
 
-    m = Fluent::Plugin::Elb_LogInput::ACCESSLOG_REGEXP.match(log)
+    m = Fluent::Plugin::Elb_LogInput::ALB_ACCESSLOG_REGEXP.match(log)
     assert_equal('2017-05-05T13:07:53.468529Z', m[:time])
     assert_equal('app/elbname/59bfa19e900030c2', m[:elb])
     assert_equal('10.20.30.40', m[:client])
@@ -223,6 +228,7 @@ class Elb_LogInputTest < Test::Unit::TestCase
     assert_equal('https', m[:type])
     assert_equal('arn:aws:elasticloadbalancing:ap-northeast-1:123456789012:targetgroup/lbgrp1/605122a4e4ee9f2d', m[:target_group_arn])
     assert_equal('"Root=1-590c7929-4eb4cb393d46a01d22db8473"', m[:trace_id])
-    assert_equal(nil, m[:option3])
+    assert_equal('"www.foo.com"', m[:domain_name])
+    assert_equal('"session-renegotiated-or-reused"', m[:chosen_cert_arn])
   end
 end

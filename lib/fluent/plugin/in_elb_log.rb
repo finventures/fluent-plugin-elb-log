@@ -10,7 +10,8 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
   helpers :timer
 
   LOGFILE_REGEXP = /^((?<prefix>.+?)\/|)AWSLogs\/(?<account_id>[0-9]{12})\/elasticloadbalancing\/(?<region>.+?)\/(?<logfile_date>[0-9]{4}\/[0-9]{2}\/[0-9]{2})\/[0-9]{12}_elasticloadbalancing_.+?_(?<logfile_elb_name>[^_]+)_(?<elb_timestamp>[0-9]{8}T[0-9]{4}Z)_(?<elb_ip_address>.+?)_(?<logfile_hash>.+)\.log(.gz)?$/
-  ACCESSLOG_REGEXP = /^((?<type>[a-z0-9]+) )?(?<time>\d{4}-\d{2}-\d{2}T\d{2}\:\d{2}\:\d{2}\.\d{6}Z) (?<elb>.+?) (?<client>[^ ]+)\:(?<client_port>.+?) (?<backend>.+?)(\:(?<backend_port>.+?))? (?<request_processing_time>.+?) (?<backend_processing_time>.+?) (?<response_processing_time>.+?) (?<elb_status_code>.+?) (?<backend_status_code>.+?) (?<received_bytes>.+?) (?<sent_bytes>.+?) \"(?<request_method>.+?) (?<request_uri>.+?) (?<request_protocol>.+?)\"( \"(?<user_agent>.*?)\" (?<ssl_cipher>.+?) (?<ssl_protocol>[^\s]+)( (?<target_group_arn>arn:.+) (?<trace_id>[^\s]+))?(| (?<option3>.*)))?/
+  ALB_ACCESSLOG_REGEXP = /^((?<type>[a-z0-9]+) )?(?<time>\d{4}-\d{2}-\d{2}T\d{2}\:\d{2}\:\d{2}\.\d{6}Z) (?<elb>.+?) (?<client>[^ ]+)\:(?<client_port>.+?) (?<backend>.+?)(\:(?<backend_port>.+?))? (?<request_processing_time>.+?) (?<backend_processing_time>.+?) (?<response_processing_time>.+?) (?<elb_status_code>.+?) (?<backend_status_code>.+?) (?<received_bytes>.+?) (?<sent_bytes>.+?) \"(?<request_method>.+?) (?<request_uri>.+?) (?<request_protocol>.+?)\" \"(?<user_agent>.*?)\" (?<ssl_cipher>.+?) (?<ssl_protocol>[^\s]+) (?<target_group_arn>[^ ]*) (?<trace_id>[^\s]+) (?<domain_name>.*) (?<chosen_cert_arn>.*)?/
+  CLASSIC_LB_ACCESSLOG_REGEXP = /^((?<type>[a-z0-9]+) )?(?<time>\d{4}-\d{2}-\d{2}T\d{2}\:\d{2}\:\d{2}\.\d{6}Z) (?<elb>.+?) (?<client>[^ ]+)\:(?<client_port>.+?) (?<backend>.+?)(\:(?<backend_port>.+?))? (?<request_processing_time>.+?) (?<backend_processing_time>.+?) (?<response_processing_time>.+?) (?<elb_status_code>.+?) (?<backend_status_code>.+?) (?<received_bytes>.+?) (?<sent_bytes>.+?) \"(?<request_method>.+?) (?<request_uri>.+?) (?<request_protocol>.+?)\" \"(?<user_agent>.*?)\" (?<ssl_cipher>.+?) (?<ssl_protocol>[^\s]+)/
 
   config_param :access_key_id, :string, default: nil, secret: true
   config_param :secret_access_key, :string, default: nil, secret: true
@@ -23,6 +24,7 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
   config_param :buf_file, :string, default: './fluentd_elb_log_buf_file'
   config_param :http_proxy, :string, default: nil
   config_param :start_time, :string, default: nil
+  config_param :lb_type, :string, default: 'alb'
 
   def configure(conf)
     super
@@ -34,6 +36,7 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
     raise Fluent::ConfigError.new("s3_bucketname is required") unless @s3_bucketname
     raise Fluent::ConfigError.new("timestamp_file is required") unless @timestamp_file
     raise Fluent::ConfigError.new("s3 bucket not found #{@s3_bucketname}") unless s3bucket_is_ok?
+    raise Fluent::ConfigError.new("lb_type is required: 'alb' for application load balancer, 'classic_lb' for classic load balancer") unless ["classic_lb", "alb"].include?(@lb_type)
   end
 
   def start
@@ -158,7 +161,9 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
         next if s3_last_modified_unixtime <= timestamp
 
         object_key = content.key
-        matches = LOGFILE_REGEXP.match(object_key)
+        matcher = ALB_ACCESSLOG_REGEXP if @lb_type == 'alb'
+        matcher = CLASSIC_LB_ACCESSLOG_REGEXP if @lb_type == 'classic_lb'
+        matches = matcher.match(object_key)
         next unless matches
 
         log.debug "matched"
@@ -305,7 +310,8 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
       "type" => item[:type],
       "target_group_arn" => item[:target_group_arn],
       "trace_id" => item[:trace_id],
-      "option3" => item[:option3]
+      "domain_name" => item[:domain_name],
+      "chosen_cert_arn" => item[:chosen_cert_arn]
     }
   end
 end

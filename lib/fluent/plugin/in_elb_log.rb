@@ -24,7 +24,7 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
   config_param :buf_file, :string, default: './fluentd_elb_log_buf_file'
   config_param :http_proxy, :string, default: nil
   config_param :start_time, :string, default: nil
-  config_param :lb_type, :string, default: 'alb'
+  config_param :lb_type, :string, default: nil
 
   def configure(conf)
     super
@@ -54,7 +54,7 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
   def has_iam_role?
     begin
       ec2 = Aws::EC2::Client.new(region: @region)
-      !ec2.config.credentials.nil?
+      !ec2&.config&.credentials.nil?
     rescue => e
       log.warn "EC2 Client error occurred: #{e.message}"
     end

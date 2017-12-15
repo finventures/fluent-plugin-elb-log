@@ -288,7 +288,7 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
   end
 
   def format_record(item)
-    { "time" => item[:time].gsub(/Z/, '+0000'),
+    { "time" => item[:time],
       "elb" => item[:elb],
       "client" => item[:client],
       "client_port" => item[:client_port],

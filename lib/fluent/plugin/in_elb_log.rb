@@ -63,7 +63,8 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
   def get_timestamp_file
     begin
       # get timestamp last proc
-      start_time = @start_time ? Time.parse(@start_time).utc : Time.at(0)
+      # Only look back one hour by default
+      start_time = @start_time ? Time.parse(@start_time).utc : Time.now - (60 * 60)
       timestamp = start_time.to_i
       log.debug "timestamp file #{@timestamp_file} read"
       File.open(@timestamp_file, File::RDONLY) do |file|

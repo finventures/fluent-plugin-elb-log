@@ -68,7 +68,10 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
       timestamp = start_time.to_i
       log.debug "timestamp file #{@timestamp_file} read"
       File.open(@timestamp_file, File::RDONLY) do |file|
-        timestamp = file.read.to_i if file.size > 0
+        if file.size > 0
+          timestamp = file.read.to_i
+          log.debug "timestamp from file: #{timestamp}"
+        end
       end
       log.debug "timestamp start at:" + Time.at(timestamp).to_s
       return timestamp
@@ -79,7 +82,7 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
 
   def put_timestamp_file(timestamp)
     begin
-      log.debug "timestamp file #{@timestamp_file} write"
+      log.debug "timestamp file #{@timestamp_file} write: #{timestamp.to_s}"
       File.open(@timestamp_file, File::WRONLY|File::CREAT|File::TRUNC) do |file|
         file.puts timestamp.to_s
       end

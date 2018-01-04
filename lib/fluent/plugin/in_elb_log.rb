@@ -73,7 +73,7 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
           log.debug "timestamp from file: #{timestamp}"
         end
       end
-      log.debug "timestamp start at:" + Time.at(timestamp).to_s
+      log.debug "timestamp start at: " + Time.at(timestamp).to_s
       return timestamp
     rescue => e
       log.warn "timestamp file get and parse error occurred: #{e.message}"
@@ -162,13 +162,20 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
       get_object_contents.each do |content|
         # snip old items
         s3_last_modified_unixtime = content.last_modified.to_i
-        next if s3_last_modified_unixtime <= timestamp
+
+        if s3_last_modified_unixtime <= timestamp
+          log.debug "last modified #{content.last_modified} <= timestamp #{timestamp}"
+          next
+        end
 
         object_key = content.key
         matcher = ALB_ACCESSLOG_REGEXP if @lb_type == 'alb'
         matcher = CLASSIC_LB_ACCESSLOG_REGEXP if @lb_type == 'classic_lb'
         matches = matcher.match(object_key)
-        next unless matches
+        unless matches
+          log.debug "no match"
+          next
+        end
 
         log.debug "matched"
         log.debug object_key

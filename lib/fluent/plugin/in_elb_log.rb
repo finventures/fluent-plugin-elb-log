@@ -169,9 +169,7 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
         end
 
         object_key = content.key
-        matcher = ALB_ACCESSLOG_REGEXP if @lb_type == 'alb'
-        matcher = CLASSIC_LB_ACCESSLOG_REGEXP if @lb_type == 'classic_lb'
-        matches = matcher.match(object_key)
+        matches = LOGFILE_REGEXP.match(object_key)
         unless matches
           log.debug "no match"
           next
@@ -280,11 +278,13 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
   end
 
   def emit_lines_from_buffer_file(record_common)
+    matcher = ALB_ACCESSLOG_REGEXP if @lb_type == 'alb'
+    matcher = CLASSIC_LB_ACCESSLOG_REGEXP if @lb_type == 'classic_lb'
     begin
       # emit per line
       File.open(@buf_file, File::RDONLY) do |file|
         file.each_line do |line|
-          line_match = ACCESSLOG_REGEXP.match(line)
+          line_match = matcher.match(line)
           unless line_match
             log.info "nomatch log found: #{line} in #{record_common['key']}"
             next

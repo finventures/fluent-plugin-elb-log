@@ -171,7 +171,7 @@ class Fluent::Plugin::Elb_LogInput < Fluent::Plugin::Input
         object_key = content.key
         matches = LOGFILE_REGEXP.match(object_key)
         unless matches
-          log.debug "no match"
+          log.debug "no match for #{object_key}"
           next
         end
 
